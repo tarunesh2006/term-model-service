@@ -1,44 +1,20 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
-from sqlalchemy.orm import Session
-
-from app.db import SessionLocal
-from app.security import decode_token
+from jose import jwt
+from app.db import get_db
 from app import models
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
+SECRET_KEY = "supersecretkey"
+ALGORITHM = "HS256"
 
-def get_db():
-    db = SessionLocal()
+def get_current_user(token: str = Depends(oauth2_scheme), db=Depends(get_db)):
     try:
-        yield db
-    finally:
-        db.close()
-
-
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-):
-    try:
-        payload = decode_token(token)
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        user = db.query(models.User).filter(models.User.username == username).first()
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user = db.query(models.User).filter_by(username=payload["sub"]).first()
         if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-
+            raise HTTPException(status_code=401, detail="Invalid user")
         return user
-
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
+    except:
+        raise HTTPException(status_code=401, detail="Invalid token")

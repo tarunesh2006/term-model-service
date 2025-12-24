@@ -1,41 +1,52 @@
 from pydantic import BaseModel
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-
+from typing import List
 
 class UserCreate(BaseModel):
     username: str
     password: str
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 class TermCreate(BaseModel):
-    turf_rid: int
-    term_id: str
-    language: str | None = None
-    country: str | None = None
-    term_name: str | None = None
+    turf_name: str
+    term_name: str
+    language: str
+    country: str
     term_description: str | None = None
     term_acronym: str | None = None
-    is_machinized_name: bool = False
-    is_standardized_name: bool = True
 
 
-class TermOut(TermCreate):
-    term_rid: int
+class TermResponse(BaseModel):
+    term_id: str
+    term_name: str
+    language: str
+    country: str
+    term_description: str | None
+    term_acronym: str | None
 
     class Config:
         from_attributes = True
 
 
-class TermSelfsameCreate(BaseModel):
-    term_selfsame_id: str
-    turf_rid: int
-    term_rid: int
+class SynonymGroupCreate(BaseModel):
+    turf_name: str
+    terms: List[str]
 
 
-class TermSynonymCreate(BaseModel):
+class SynonymGroupResponse(BaseModel):
     term_synonym_id: str
-    turf_rid: int
-    term_id: str
+    turf_name: str
+    terms: List[str]
+
+
+class SelfsameGroupCreate(BaseModel):
+    turf_name: str
+    terms: List[str]
+
+
+class SelfsameGroupResponse(BaseModel):
+    term_selfsame_id: str
+    turf_name: str
+    terms: List[str]
