@@ -30,23 +30,25 @@ class TermResponse(BaseModel):
         from_attributes = True
 
 
-class SynonymGroupCreate(BaseModel):
+class TermSynonymCreate(BaseModel):
     turf_name: str
-    terms: List[str]
+    term: str
+    synonym: str
 
-
-class SynonymGroupResponse(BaseModel):
+class TermSynonymResponse(BaseModel):
     term_synonym_id: str
     turf_name: str
-    terms: List[str]
+    terms: list[str]
 
-
-class SelfsameGroupCreate(BaseModel):
+class TermSelfsameCreate(BaseModel):
     turf_name: str
-    terms: List[str]
+    term: str
+    selfsame: str
 
 
-class SelfsameGroupResponse(BaseModel):
+class TermSelfsameResponse(BaseModel):
     term_selfsame_id: str
     turf_name: str
-    terms: List[str]
+    terms: list[str]
+
+

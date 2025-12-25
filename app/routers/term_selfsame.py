@@ -6,65 +6,101 @@ from app import models, schemas
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
-@router.get("/", response_model=list[schemas.SelfsameGroupResponse])
-def get_selfsame_groups(db: Session = Depends(get_db)):
+@router.get("/", response_model=list[schemas.TermSelfsameResponse])
+def get_all_selfsame(db: Session = Depends(get_db)):
     rows = db.query(models.TermSelfsame).all()
 
-    groups = {}
+    grouped = {}
+    for r in rows:
+        if r.term_selfsame_id not in grouped:
+            grouped[r.term_selfsame_id] = {
+                "term_selfsame_id": r.term_selfsame_id,
+                "turf_name": r.turf_name,
+                "terms": [],
+            }
+        grouped[r.term_selfsame_id]["terms"].append(r.term_name)
 
-    for row in rows:
-        key = (row.term_selfsame_id, row.turf_rid)
+    return list(grouped.values())
 
-        if key not in groups:
-            groups[key] = []
-
-        groups[key].append(row.term_name)
-
-    response = []
-    for (group_id, turf_rid), terms in groups.items():
-        response.append({
-            "term_selfsame_id": group_id,
-            "turf_name": "Oil and Gas",   # or map turf_rid → name
-            "terms": terms
-        })
-
-    return response
 
 
 # ✅ CREATE
-@router.post("/", response_model=schemas.SelfsameGroupResponse)
-def create_selfsame_group(
-    data: schemas.SelfsameGroupCreate,
-    db: Session = Depends(get_db)
+@router.post("/", response_model=schemas.TermSelfsameResponse)
+def create_term_selfsame(
+    data: schemas.TermSelfsameCreate,
+    db: Session = Depends(get_db),
 ):
-    turf_rid = 0  # example
-
-    # validate terms exist
-    for name in data.terms:
-        if not db.query(models.Term).filter_by(term_name=name).first():
-            raise HTTPException(400, f"Term '{name}' does not exist")
-
-    last = (
-        db.query(models.TermSelfsame)
-        .order_by(models.TermSelfsame.term_selfsame_id.desc())
+    # 1️⃣ Validate both terms exist in terms table
+    term1 = (
+        db.query(models.Term)
+        .filter(models.Term.term_name.ilike(data.term))
         .first()
     )
-    new_id = "SS001" if not last else f"SS{int(last.term_selfsame_id[2:]) + 1:03d}"
+    term2 = (
+        db.query(models.Term)
+        .filter(models.Term.term_name.ilike(data.selfsame))
+        .first()
+    )
 
-    for name in data.terms:
-        db.add(models.TermSelfsame(
-            term_selfsame_id=new_id,
-            turf_rid=turf_rid,
-            term_name=name
-        ))
+    if not term1:
+        raise HTTPException(400, detail=f"Term '{data.term}' does not exist")
+
+    if not term2:
+        raise HTTPException(400, detail=f"Selfsame '{data.selfsame}' does not exist")
+
+    # 2️⃣ Check if selfsame group already exists for this turf
+    existing = (
+        db.query(models.TermSelfsame)
+        .filter(models.TermSelfsame.turf_name.ilike(data.turf_name))
+        .first()
+    )
+
+    if existing:
+        selfsame_id = existing.term_selfsame_id
+    else:
+        last = (
+            db.query(models.TermSelfsame)
+            .order_by(models.TermSelfsame.id.desc())
+            .first()
+        )
+        next_num = int(last.term_selfsame_id[2:]) + 1 if last else 1
+        selfsame_id = f"SS{next_num:03d}"
+
+    # 3️⃣ Insert BOTH terms if not already present
+    for term_name in {term1.term_name, term2.term_name}:
+        exists = (
+            db.query(models.TermSelfsame)
+            .filter(
+                models.TermSelfsame.term_selfsame_id == selfsame_id,
+                models.TermSelfsame.term_name.ilike(term_name),
+            )
+            .first()
+        )
+
+        if not exists:
+            db.add(
+                models.TermSelfsame(
+                    term_selfsame_id=selfsame_id,
+                    turf_name=data.turf_name,
+                    term_name=term_name,
+                )
+            )
 
     db.commit()
 
+    # 4️⃣ Return grouped response
+    rows = (
+        db.query(models.TermSelfsame)
+        .filter(models.TermSelfsame.term_selfsame_id == selfsame_id)
+        .all()
+    )
+
     return {
-        "term_selfsame_id": new_id,
+        "term_selfsame_id": selfsame_id,
         "turf_name": data.turf_name,
-        "terms": data.terms
+        "terms": [r.term_name for r in rows],
     }
+
 
 # ✅ DELETE GROUP
 @router.delete("/{term_selfsame_id}")

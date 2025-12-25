@@ -28,7 +28,7 @@ class TermSynonym(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     term_synonym_id = Column(String, index=True)
-    turf_rid = Column(Integer, index=True)
+    turf_name = Column(String, index=True)
     term_name = Column(String, index=True)
 
 
@@ -36,6 +36,6 @@ class TermSelfsame(Base):
     __tablename__ = "term_selfsame"
 
     id = Column(Integer, primary_key=True, index=True)
-    term_selfsame_id = Column(String, index=True)
-    turf_rid = Column(Integer, index=True)
+    term_selfsame_id = Column(String, index=True)   # SS001, SS002...
+    turf_name = Column(String, index=True)
     term_name = Column(String, index=True)
